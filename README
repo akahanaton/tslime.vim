@@ -3,3 +3,12 @@ tslime.vim
 My fork of https://github.com/jgdavey/tslime.vim
 
 It adds some functionality, fixes some bugs, and adds docs.
+
+" add these mapping to you ~/.vimrc
+" send the whole file to the next tmux  pane
+let g:tslime_normal_all_mapping = '<LocalLeader>aa'
+" send the current line
+let g:tslime_normal_line_mapping = '<LocalLeader>l'
+" send the visual selection
+let g:tslime_visual_mapping = '<LocalLeader>t'
+let g:tslime_vars_mapping = '<LocalLeader>T'
