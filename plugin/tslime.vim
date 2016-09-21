@@ -11,8 +11,11 @@ let g:loaded_tslime = 1
 if !exists("g:tslime_ensure_trailing_newlines")
   let g:tslime_ensure_trailing_newlines = 0
 endif
-if !exists("g:tslime_normal_mapping")
-  let g:tslime_normal_mapping = '<c-c><c-c>'
+if !exists("g:tslime_normal_all_mapping")
+  let g:tslime_normal_all_mapping = '<c-c><c-c>'
+endif
+if !exists("g:tslime_normal_line_mapping")
+  let g:tslime_normal_line_mapping = '<c-c><c-c>'
 endif
 if !exists("g:tslime_visual_mapping")
   let g:tslime_visual_mapping = '<c-c><c-c>'
@@ -20,6 +23,10 @@ endif
 if !exists("g:tslime_vars_mapping")
   let g:tslime_vars_mapping = '<c-c>v'
 endif
+
+function! Chomp(string)
+        return substitute(a:string, '\n\+$', '', '')
+endfunction
 
 " Main function.
 " Use it in your script if you want to send text to a tmux session.
@@ -35,6 +42,7 @@ function! Send_to_Tmux(text)
   end
 
   let target = b:tmux_sessionname . ":" . b:tmux_windowname . "." . b:tmux_panenumber
+  echo target
 
   " Look, I know this is horrifying.  I'm sorry.
   "
@@ -50,6 +58,9 @@ function! Send_to_Tmux(text)
   "
   " This is my life.  This is computering in 2014.
   for line in split(a:text, '\n\zs' )
+    "--------------------------------------------------
+    " echo line
+    "--------------------------------------------------
     call <SID>set_tmux_buffer(line)
     call system("tmux paste-buffer -dpt " . target)
     sleep 2m
@@ -73,7 +84,11 @@ function! s:set_tmux_buffer(text)
   call system("tmux set-buffer -- '" . substitute(a:text, "'", "'\\\\''", 'g') . "'")
 endfunction
 
-function! SendToTmux(text)
+function! SendToTmuxAll(text)
+  call Send_to_Tmux(s:ensure_newlines(a:text))
+endfunction
+
+function! SendToTmuxLine(text)
   call Send_to_Tmux(s:ensure_newlines(a:text))
 endfunction
 
@@ -98,21 +113,44 @@ endfunction
 
 " set tslime.vim variables
 function! s:Tmux_Vars()
-  let b:tmux_sessionname = ''
-  while b:tmux_sessionname == ''
-    let b:tmux_sessionname = input("session name: ", "", "custom,Tmux_Session_Names")
-  endwhile
-  let b:tmux_windowname = substitute(input("window name: ", "", "custom,Tmux_Window_Names"), ":.*$" , '', 'g')
-  let b:tmux_panenumber = input("pane number: ", "", "custom,Tmux_Pane_Numbers")
+  "--------------------------------------------------
+  " let b:tmux_sessionname = ''
+  "--------------------------------------------------
+  let b:tmux_sessionname = Chomp(system("tmux list-sessions|grep attached|sed -e 's/:.*$//'"))
+  "--------------------------------------------------
+  " while b:tmux_sessionname == ''
+  "   let b:tmux_sessionname = input("session name: ", "", "custom,Tmux_Session_Names")
+  " endwhile
+  "--------------------------------------------------
+  "--------------------------------------------------
+  "--------------------------------------------------
+  " let b:tmux_windowname = substitute(input("window name: ", "", "custom,Tmux_Window_Names"), ":.*$" , '', 'g')
+  " let b:tmux_panenumber = input("pane number: ", "", "custom,Tmux_Pane_Numbers")
+  "--------------------------------------------------
 
-  if b:tmux_windowname == ''
-    let b:tmux_windowname = '0'
-  endif
 
-  if b:tmux_panenumber == ''
-    let b:tmux_panenumber = '0'
-  endif
+  let b:tmux_windowname = ' '
+  let b:tmux_windowname= Chomp(system("tmux display -p| cut -d ':' -f1 | grep -o '[0-9]$'"))
 
+  "--------------------------------------------------
+  " if b:tmux_windowname == ''
+  "   let b:tmux_windowname = '0'
+  " endif
+  "--------------------------------------------------
+  let b:tmux_panenumber = ' '
+  let b:tmux_panenumber= Chomp(system("tmux display -p|grep -o 'pane .* -' | grep -o '[0-9]'")) + 1
+  "--------------------------------------------------
+  " if b:tmux_panenumber == ''
+  "   let b:tmux_panenumber = '0'
+  " endif
+  "--------------------------------------------------
+
+  "--------------------------------------------------
+  " echo b:tmux_sessionname
+  "--------------------------------------------------
+  echo b:tmux_windowname
+  echo b:tmux_panenumber
+  "--------------------------------------------------
   let g:tmux_sessionname = b:tmux_sessionname
   let g:tmux_windowname = b:tmux_windowname
   let g:tmux_panenumber = b:tmux_panenumber
@@ -120,6 +158,13 @@ endfunction
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-execute "vnoremap" . g:tslime_visual_mapping . ' "ry:call Send_to_Tmux(@r)<CR>'
-execute "nnoremap" . g:tslime_normal_mapping . ' vip"ry:call Send_to_Tmux(@r)<CR>'
+"--------------------------------------------------
+" execute "vnoremap" . g:tslime_visual_mapping . ' "ry:call Send_to_Tmux(@r)<CR>'
+"--------------------------------------------------
+execute "vnoremap" . g:tslime_visual_mapping . ' "ry:call SendToTmuxAll(@r)<CR>'
+"--------------------------------------------------
+" execute "nnoremap" . g:tslime_normal_all_mapping . ' vip"ry:call Send_to_Tmux(@r)<CR>'
+"--------------------------------------------------
+execute "nnoremap" . g:tslime_normal_all_mapping . ' vip"ry:call SendToTmuxAll(@r)<CR>'
+execute "nnoremap" . g:tslime_normal_line_mapping . ' :call SendToTmuxLine(getline(".")."\n")<CR>'
 execute "nnoremap" . g:tslime_vars_mapping   . ' :call <SID>Tmux_Vars()<CR>'
