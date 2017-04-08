@@ -12,6 +12,7 @@ Plug 'https://github.com/akahanaton/tslime.vim'
 let g:tslime_normal_all_mapping = '<LocalLeader>ta'
 " send the current line
 let g:tslime_normal_line_mapping = '<LocalLeader>tl'
+" send the current line to a temporary file: tmp.sh
 let g:tslime_normal_line_echo_mapping = '<LocalLeader>tk'
 
 " send the cWORD under cursor and excute the HEAD command on that cWORD
