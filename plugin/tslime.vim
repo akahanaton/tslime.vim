@@ -17,6 +17,12 @@ endif
 if !exists("g:tslime_normal_line_mapping")
   let g:tslime_normal_line_mapping = '<c-c><c-c>'
 endif
+if !exists("g:tslime_normal_head_mapping")
+  let g:tslime_normal_head_mapping = '<c-c><c-c>'
+endif
+if !exists("g:tslime_normal_less_mapping")
+  let g:tslime_normal_less_mapping = '<c-c><c-c>'
+endif
 if !exists("g:tslime_normal_line_echo_mapping")
   let g:tslime_normal_line_echo_mapping = '<c-c><c-c>'
 endif
@@ -66,13 +72,13 @@ function! Send_to_Echo(text)
     let echoLine = "echo '" . line . "' > tmp.sh"
     call <SID>set_tmux_buffer(echoLine)
     call system("tmux paste-buffer -dpt " . target)
-    sleep 2m
+    sleep 1m
   endfor
 endfunction
 
 " Main function.
 " Use it in your script if you want to send text to a tmux session.
-function! Send_to_Tmux(text)
+silent function! Send_to_Tmux_Cmd(cmd, text)
   if !exists("b:tmux_sessionname") || !exists("b:tmux_windowname") || !exists("b:tmux_panenumber")
     if exists("g:tmux_sessionname") && exists("g:tmux_windowname") && exists("g:tmux_panenumber")
       let b:tmux_sessionname = g:tmux_sessionname
@@ -105,23 +111,64 @@ function! Send_to_Tmux(text)
     "--------------------------------------------------
     " echo line
     "--------------------------------------------------
-    call <SID>set_tmux_buffer(line)
-    call system("tmux paste-buffer -dpt " . target)
-    sleep 2m
+    silent call <SID>set_tmux_buffer(a:cmd . ' ' .  line)
+    silent call system("tmux paste-buffer -dpt " . target)
+    sleep 1m
   endfor
 endfunction
 
+" Main function.
+" Use it in your script if you want to send text to a tmux session.
+function! Send_to_Tmux(text)
+      if !exists("b:tmux_sessionname") || !exists("b:tmux_windowname") || !exists("b:tmux_panenumber")
+        if exists("g:tmux_sessionname") && exists("g:tmux_windowname") && exists("g:tmux_panenumber")
+          let b:tmux_sessionname = g:tmux_sessionname
+          let b:tmux_windowname = g:tmux_windowname
+          let b:tmux_panenumber = g:tmux_panenumber
+        else
+          call <SID>Tmux_Vars()
+        end
+      end
+
+      let target = b:tmux_sessionname . ":" . b:tmux_windowname . "." . b:tmux_panenumber
+      "--------------------------------------------------
+      " echo target
+      "--------------------------------------------------
+
+      " Look, I know this is horrifying.  I'm sorry.
+      "
+      " THE PROBLEM: Certain REPLs (e.g.: SBCL) choke if you paste an assload of
+      " text into them all at once (where 'assload' is 'something more than a few
+      " hundred characters but fewer than eight thousand').  They'll seem to get out
+      " of sync with the paste, and your code gets mangled.
+      "
+      " THE SOLUTION: We paste a single line at a time, and sleep for a bit in
+      " between each one.  This gives the REPL time to process things and stay
+      " caught up.  2 milliseconds seems to be enough of a sleep to avoid breaking
+      " things and isn't too painful to sit through.
+      "
+      " This is my life.  This is computering in 2014.
+      for line in split(a:text, '\n\zs' )
+        "--------------------------------------------------
+        " echo line
+        "--------------------------------------------------
+        call <SID>set_tmux_buffer(line)
+        call system("tmux paste-buffer -dpt " . target)
+        sleep 1m
+      endfor
+endfunction
+
 function! s:ensure_newlines(text)
-  let text = a:text
-  let trailing_newlines = matchstr(text, '\v\n*$')
-  let spaces_to_add = g:tslime_ensure_trailing_newlines - strlen(trailing_newlines)
+      let text = a:text
+      let trailing_newlines = matchstr(text, '\v\n*$')
+      let spaces_to_add = g:tslime_ensure_trailing_newlines - strlen(trailing_newlines)
 
-  while spaces_to_add > 0
-    let spaces_to_add -= 1
-    let text .= "\n"
-  endwhile
+      while spaces_to_add > 0
+        let spaces_to_add -= 1
+        let text .= "\n"
+      endwhile
 
-  return text
+      return text
 endfunction
 
 function! s:set_tmux_buffer(text)
@@ -134,6 +181,10 @@ endfunction
 
 function! SendToTmuxLine(text)
   call Send_to_Tmux(s:ensure_newlines(a:text))
+endfunction
+
+silent function! SendToTmuxCmd(cmd, text)
+  call Send_to_Tmux_Cmd(a:cmd, s:ensure_newlines(a:text))
 endfunction
 
 function! SendToTmuxEcho(text)
@@ -211,12 +262,14 @@ endfunction
 "--------------------------------------------------
 " execute "vnoremap" . g:tslime_visual_mapping . ' "ry:call Send_to_Tmux(@r)<CR>'
 "--------------------------------------------------
-execute "vnoremap" . g:tslime_visual_mapping . ' "ry:call SendToTmuxAll(@r)<CR>'
-execute "vnoremap" . g:tslime_visual_echo_mapping . ' "ry:call SendToTmuxEcho(@r)<CR>'
+execute "vnoremap <silent>" . g:tslime_visual_mapping . ' "ry:call SendToTmuxAll(@r)<CR>'
+execute "vnoremap <silent>" . g:tslime_visual_echo_mapping . ' "ry:call SendToTmuxEcho(@r)<CR>'
+execute "nnoremap <silent>" . g:tslime_normal_all_mapping . ' vip"ry:call Send_to_Tmux(@r)<CR>'
 "--------------------------------------------------
-" execute "nnoremap" . g:tslime_normal_all_mapping . ' vip"ry:call Send_to_Tmux(@r)<CR>'
+" execute "nnoremap" . g:tslime_normal_all_mapping . ' vip"ry:call SendToTmuxAll(@r)<CR>'
 "--------------------------------------------------
-execute "nnoremap" . g:tslime_normal_all_mapping . ' vip"ry:call SendToTmuxAll(@r)<CR>'
-execute "nnoremap" . g:tslime_normal_line_mapping . ' :call SendToTmuxLine(getline(".")."\n")<CR>'
-execute "nnoremap" . g:tslime_normal_line_echo_mapping . ' :call SendToTmuxEcho(getline(".")."\n")<CR>'
-execute "nnoremap" . g:tslime_vars_mapping   . ' :call <SID>Tmux_Vars()<CR>'
+execute "nnoremap <silent>" . g:tslime_normal_line_mapping . ' :call SendToTmuxLine(getline(".")."\n")<CR>'
+execute "nnoremap <silent>" . g:tslime_normal_line_echo_mapping . ' :call SendToTmuxEcho(getline(".")."\n")<CR>'
+execute "nnoremap <silent>" . g:tslime_normal_head_mapping . ' :call SendToTmuxCmd("head", expand("<cWORD>")."\n")<CR>'
+execute "nnoremap <silent>" . g:tslime_normal_less_mapping . ' :call SendToTmuxCmd("lss", expand("<cWORD>")."\n")<CR>'
+execute "nnoremap <silent>" . g:tslime_vars_mapping   . ' :call <SID>Tmux_Vars()<CR>'
