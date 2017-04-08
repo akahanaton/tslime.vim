@@ -8,7 +8,7 @@ Plug 'https://github.com/akahanaton/tslime.vim'
 " add these mapping to you ~/.vimrc
 " send the whole file to the next tmux  pane, 
 " however, it will stop at the first meet of a blank line, need to be fix. 
-" Call this as "seed a block" then.
+" call this as "send a block" then.
 let g:tslime_normal_all_mapping = '<LocalLeader>ta'
 " send the current line
 let g:tslime_normal_line_mapping = '<LocalLeader>tl'
