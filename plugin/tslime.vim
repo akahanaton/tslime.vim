@@ -237,7 +237,7 @@ function! s:Tmux_Vars()
   " endif
   "--------------------------------------------------
   let b:tmux_panenumber = ' '
-  let b:tmux_panenumber= Chomp(system("tmux display -p|grep -o 'pane .* -' | grep -o '[0-9]'")) + 1
+  let b:tmux_panenumber= Chomp(system("tmux display -p|grep -o 'pane .* -' | grep -o '[0-9]'")) - 1
   "--------------------------------------------------
   " if b:tmux_panenumber == ''
   "   let b:tmux_panenumber = '0'
